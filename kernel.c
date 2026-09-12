@@ -27,13 +27,9 @@ struct sbiret sbi_call(long arg0, long arg1, long arg2, long arg3, long arg4,
     return (struct sbiret){.error = a0, .value = a1};
 };
 
-void putchar(char ch) {
-    sbi_call(ch, 0, 0, 0, 0, 0, 0, 1);
-}
+void putchar(char ch) { sbi_call(ch, 0, 0, 0, 0, 0, 0, 1); }
 
-__attribute__((naked))
-__attribute__((aligned(4))) void
-kernel_entry(void) {
+__attribute__((naked)) __attribute__((aligned(4))) void kernel_entry(void) {
     __asm__ __volatile__(
         "csrw sscratch, sp\n"
         "addi sp, sp, -4 * 31\n"  // Allocate space for the trap_frame struct
@@ -108,8 +104,34 @@ kernel_entry(void) {
         "sret\n");
 }
 
+extern char __free_ram[], __free_ram_end[];
+
+paddr_t alloc_pages(uint32_t n) {
+    static paddr_t next_paddr = (paddr_t)__free_ram;
+
+    paddr_t paddr = next_paddr;
+
+    next_paddr += n * PAGE_SIZE;
+
+    if (next_paddr > (paddr_t)__free_ram_end) {
+        PANIC("out of memory");
+    }
+
+    memset((void*)paddr, 0, n * PAGE_SIZE);
+
+    return paddr;
+}
+
 void kernel_main(void) {
     memset(__bss, 0, (size_t)__bss_end - (size_t)__bss);
+
+    paddr_t paddr0 = alloc_pages(2);
+    paddr_t paddr1 = alloc_pages(1);
+
+    printf("alloc_pages test: paddr0=%x\n", paddr0);
+    printf("alloc_pages test: paddr1=%x\n", paddr1);
+
+    PANIC("booted!");
 
     WRITE_CSR(stvec, (uint32_t)kernel_entry);
     __asm__ __volatile__("unimp");
@@ -136,12 +158,11 @@ void handle_trap(struct trap_frame* f) {
     uint32_t stval = READ_CSR(stval);
     uint32_t user_pc = READ_CSR(sepc);
 
-    PANIC("unexpected trap scause=%x, stval=%x, sepc=%x\n", scause, stval, user_pc);
+    PANIC("unexpected trap scause=%x, stval=%x, sepc=%x\n", scause, stval,
+          user_pc);
 }
 
-__attribute__((section(".text.boot")))
-__attribute__((naked)) void
-boot(void) {
+__attribute__((section(".text.boot"))) __attribute__((naked)) void boot(void) {
     __asm__ __volatile__(
         "mv sp, %[stack_top]\n"
         "j kernel_main\n"

@@ -7,7 +7,8 @@ struct sbiret {
 };
 
 /**
- * if this was made an function, then it would show the file name and line number where PANIC is defined, not where it's called
+ * if this was made an function, then it would show the file name and line
+ * number where PANIC is defined, not where it's called
  */
 #define PANIC(fmt, ...)                                                       \
     do {                                                                      \
