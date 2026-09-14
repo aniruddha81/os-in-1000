@@ -63,3 +63,17 @@ struct trap_frame {
         uint32_t __tmp = (value);                               \
         __asm__ __volatile__("csrw " #reg ", %0" ::"r"(__tmp)); \
     } while (0)
+
+/**
+ * --------------------- process ---------------------------
+ *  */
+#define PROCS_MAX 8
+#define PROC_UNUSED 0
+#define PROC_RUNNABLE 1
+
+struct process {
+    int pid;
+    int state;  // proc_unused or proc_runnable
+    vaddr_t sp;
+    uint8_t stack[8192];
+};
